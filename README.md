@@ -1,16 +1,51 @@
-# React + Vite
+🍴 LooBites
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+LooBites is a platform for University of Waterloo students to check daily residence cafeteria meals, share reviews, and upload photos of their food. Our goal is to help students make better meal choices and build a community around campus dining.
 
-Currently, two official plugins are available:
+🚀 MVP Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Daily Menus
 
-## React Compiler
+Scrape and display residence cafeteria meals for breakfast, lunch, and dinner.
 
-The React Compiler is not enabled on this template. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Automatically refresh menus daily.
 
-## Expanding the ESLint configuration
+User Authentication
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Sign up / log in with Google (via Supabase Auth).
+
+Basic profile page accessible from the Navbar.
+
+Reviews & Ratings
+
+Students can leave reviews and rate meals (1–5 stars).
+
+Reviews displayed alongside each food item.
+
+Photo Uploads
+
+Students can upload images of their meals.
+
+“Photo of the Day” displayed on the homepage.
+
+Navigation
+
+Navbar visible on all pages with links to:
+
+Home (Daily Menus)
+
+Residences (Dropdown for each cafeteria)
+
+Reviews
+
+Profile (top-right icon)
+
+🛠️ Tech Stack
+
+Frontend: React (UI, routing, pages)
+
+Backend & Auth: Supabase (database + Gmail login)
+
+Styling: Tailwind CSS (responsive design)
+
+Deployment: Vercel (production hosting)
