@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMenus } from './hooks/useMenus'
+import { supabase } from './lib/supabaseClient'
 
 function LogoMark({ size = 28, color = '#000' }) {
   const height = size
@@ -114,10 +115,51 @@ function Avatar({ size = 30 }) {
 
 function AuthLanding({ onLogin, dark = false }) {
   const [mode, setMode] = useState('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
-  const onSubmit = (e) => {
+  const canUseAuth = !!supabase
+
+  const onSubmit = async (e) => {
     e.preventDefault()
-    if (mode === 'login') onLogin?.()
+    setError('')
+    setInfo('')
+    if (!canUseAuth) return
+    if (mode === 'signup') {
+      if (!email || !password || !confirmPassword) { setError('Please fill all required fields.'); return }
+      if (password !== confirmPassword) { setError('Passwords do not match.'); return }
+      setLoading(true)
+      const { error: err } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName || undefined } },
+      })
+      setLoading(false)
+      if (err) setError(err.message)
+      else setInfo('Sign up successful. Check your email if confirmation is required.')
+      return
+    }
+    // login
+    if (!email || !password) { setError('Please enter email and password.'); return }
+    setLoading(true)
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    setLoading(false)
+    if (err) setError(err.message)
+  }
+
+  const signInWithGoogle = async () => {
+    setError('')
+    setInfo('')
+    if (!canUseAuth) return
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+    })
   }
 
   return (
@@ -160,41 +202,49 @@ function AuthLanding({ onLogin, dark = false }) {
               {mode === 'signup' && (
                 <div className="lb-field">
                   <label htmlFor="fullName" className="lb-visually-hidden">Full Name</label>
-                  <input id="fullName" name="fullName" type="text" placeholder="Full Name" autoComplete="name" />
+                  <input id="fullName" name="fullName" type="text" placeholder="Full Name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={!canUseAuth || loading} />
                 </div>
               )}
               <div className="lb-field">
-                <label htmlFor="identifier" className="lb-visually-hidden">Email or Username</label>
-                <input id="identifier" name="identifier" type="text" placeholder="Email or Username" autoComplete="username email" required />
+                <label htmlFor="identifier" className="lb-visually-hidden">Email</label>
+                <input id="identifier" name="identifier" type="email" placeholder="Email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={!canUseAuth || loading} />
               </div>
               <div className="lb-field">
                 <label htmlFor="password" className="lb-visually-hidden">Password</label>
-                <input id="password" name="password" type="password" placeholder="Password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />
+                <input id="password" name="password" type="password" placeholder="Password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required value={password} onChange={(e) => setPassword(e.target.value)} disabled={!canUseAuth || loading} />
               </div>
               {mode === 'signup' && (
                 <div className="lb-field">
                   <label htmlFor="confirmPassword" className="lb-visually-hidden">Confirm Password</label>
-                  <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm Password" autoComplete="new-password" required />
+                  <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm Password" autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={!canUseAuth || loading} />
                 </div>
               )}
 
-              <button type="submit" className="lb-primary-btn">
-                {mode === 'login' ? 'Log In' : 'Sign Up'}
+              {!!error && <div role="alert" style={{ color: '#E11D48', marginBottom: 8 }}>{error}</div>}
+              {!!info && <div role="status" style={{ color: '#059669', marginBottom: 8 }}>{info}</div>}
+
+              <button type="submit" className="lb-primary-btn" disabled={!canUseAuth || loading}>
+                {loading ? 'Please wait…' : mode === 'login' ? 'Log In' : 'Sign Up'}
               </button>
             </form>
 
             <div className="lb-divider" aria-hidden="true">Or continue with</div>
 
             <div className="lb-sso">
-              <button type="button" className="lb-sso-btn" aria-label="Sign in with Gmail">
+              <button type="button" className="lb-sso-btn" aria-label="Sign in with Google" onClick={signInWithGoogle} disabled={!canUseAuth || loading}>
                 <span className="lb-sso-icon"><GoogleIcon /></span>
-                <span className="lb-sso-label">Sign in with Gmail</span>
-              </button>
-              <button type="button" className="lb-sso-btn" aria-label="Sign in with Outlook">
-                <span className="lb-sso-icon"><OutlookIcon /></span>
-                <span className="lb-sso-label">Sign in with Outlook</span>
+                <span className="lb-sso-label">Sign in with Google</span>
               </button>
             </div>
+
+            {!canUseAuth && (
+              <div style={{ paddingTop: 12, fontSize: 12, opacity: 0.85 }}>
+                Missing Supabase environment variables. Add either
+                <code style={{ marginLeft: 4 }}>VITE_SUPABASE_URL</code> and
+                <code style={{ marginLeft: 4 }}>VITE_SUPABASE_ANON_KEY</code> or
+                your existing <code style={{ marginLeft: 4 }}>LOOBITES_APP_*</code> keys to <code>.env.local</code>, then restart the dev server.
+              </div>
+            )}
 
             <p className="lb-legal">
               By continuing, you agree to our <a href="#" rel="noopener noreferrer">Terms of Service</a> and <a href="#" rel="noopener noreferrer">Privacy Policy</a>.
@@ -311,7 +361,7 @@ function Navbar({ showBrand, dark, onToggleTheme, onNavigate }) {
               <a href="#" role="menuitem" onClick={(e) => { e.preventDefault(); onNavigate('profile', { username: 'me' }) }}>Profile</a>
               <a href="#" role="menuitem" onClick={(e) => e.preventDefault()}>My posts</a>
               <a href="#" role="menuitem" onClick={(e) => e.preventDefault()}>Settings</a>
-              <a href="#" role="menuitem" onClick={(e) => { e.preventDefault(); onNavigate('auth') }}>Log out</a>
+              <a href="#" role="menuitem" onClick={async (e) => { e.preventDefault(); try { await supabase?.auth?.signOut?.() } finally { onNavigate('auth') } }}>Log out</a>
             </div>
           </div>
         </nav>
@@ -575,6 +625,8 @@ export default function App() {
   const [dark, setDark] = useState(() => {
     try { return (localStorage.getItem('loobites:theme') === 'dark') } catch { return false }
   })
+  const [session, setSession] = useState(null)
+  const sessionRef = useRef(null)
 
   useEffect(() => {
     if (!window.history.state || !window.history.state.route) {
@@ -586,6 +638,12 @@ export default function App() {
     const onPop = (e) => {
       const r = e.state?.route || 'auth'
       const p = e.state?.params || {}
+      if (!sessionRef.current && r !== 'auth') {
+        window.history.pushState({ route: 'auth', params: {} }, '')
+        setRoute('auth')
+        setParams({})
+        return
+      }
       setRoute(r)
       setParams(p)
     }
@@ -593,7 +651,47 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
+  // Supabase session init + listener
+  useEffect(() => {
+    if (!supabase) return
+    let mounted = true
+    ;(async () => {
+      const { data } = await supabase.auth.getSession()
+      if (mounted) setSession(data.session)
+    })()
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+      setSession(s)
+    })
+    return () => {
+      mounted = false
+      sub?.subscription?.unsubscribe?.()
+    }
+  }, [])
+
+  // Keep ref in sync
+  useEffect(() => { sessionRef.current = session }, [session])
+
+  // Route protection
+  useEffect(() => {
+    if (!session && route !== 'auth') {
+      window.history.replaceState({ route: 'auth', params: {} }, '')
+      setRoute('auth')
+      setParams({})
+    } else if (session && route === 'auth') {
+      window.history.replaceState({ route: 'home', params: {} }, '')
+      setRoute('home')
+      setParams({})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, route])
+
   const navigate = (name, p = {}) => {
+    if (!sessionRef.current && name !== 'auth') {
+      window.history.pushState({ route: 'auth', params: {} }, '')
+      setRoute('auth')
+      setParams({})
+      return
+    }
     window.history.pushState({ route: name, params: p }, '')
     setRoute(name)
     setParams(p)
