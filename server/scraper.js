@@ -14,7 +14,7 @@ function resolveMenuURL() {
   if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
   try {
     return new URL(u).toString();
-  } catch (e) {
+  } catch {
     throw new Error(`Invalid MENU_URL_BASE: ${RAW_MENU_URL || u}`);
   }
 }

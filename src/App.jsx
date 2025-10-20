@@ -1,6 +1,43 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMenus } from './hooks/useMenus'
 import { supabase } from './lib/supabaseClient'
+
+const API_BASES = (() => {
+  const bases = []
+  const envBase = import.meta?.env?.VITE_API_BASE
+  if (envBase) bases.push(envBase)
+  bases.push('')
+  bases.push('http://localhost:4000')
+  return bases
+})()
+
+async function fetchApi(path, options = {}) {
+  let lastErr = null
+  for (const base of API_BASES) {
+    try {
+      const res = await fetch(`${base}${path}`, options)
+      return res
+    } catch (err) {
+      lastErr = err
+      continue
+    }
+  }
+  throw lastErr
+}
+
+function formatMenuId(menuId = '') {
+  if (!menuId) return ''
+  return menuId
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function starsFor(rating = 0) {
+  const value = Math.max(0, Math.min(5, Math.round(Number(rating))))
+  return `${'★'.repeat(value)}${'☆'.repeat(5 - value)}`
+}
 
 function LogoMark({ size = 28, color = '#000' }) {
   const height = size
@@ -113,7 +150,7 @@ function Avatar({ size = 30 }) {
   )
 }
 
-function AuthLanding({ onLogin, dark = false }) {
+function AuthLanding({ dark = false }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -129,7 +166,10 @@ function AuthLanding({ onLogin, dark = false }) {
     e.preventDefault()
     setError('')
     setInfo('')
-    if (!canUseAuth) return
+    if (!canUseAuth) {
+      setError('Authentication is currently unavailable. Please contact the site administrator.');
+      return
+    }
     if (mode === 'signup') {
       if (!email || !password || !confirmPassword) { setError('Please fill all required fields.'); return }
       if (password !== confirmPassword) { setError('Passwords do not match.'); return }
@@ -155,7 +195,10 @@ function AuthLanding({ onLogin, dark = false }) {
   const signInWithGoogle = async () => {
     setError('')
     setInfo('')
-    if (!canUseAuth) return
+    if (!canUseAuth) {
+      setError('Authentication is currently unavailable. Please contact the site administrator.');
+      return
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
@@ -202,28 +245,28 @@ function AuthLanding({ onLogin, dark = false }) {
               {mode === 'signup' && (
                 <div className="lb-field">
                   <label htmlFor="fullName" className="lb-visually-hidden">Full Name</label>
-                  <input id="fullName" name="fullName" type="text" placeholder="Full Name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={!canUseAuth || loading} />
+                  <input id="fullName" name="fullName" type="text" placeholder="Full Name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={loading} />
                 </div>
               )}
               <div className="lb-field">
                 <label htmlFor="identifier" className="lb-visually-hidden">Email</label>
-                <input id="identifier" name="identifier" type="email" placeholder="Email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={!canUseAuth || loading} />
+                <input id="identifier" name="identifier" type="email" placeholder="Email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
               </div>
               <div className="lb-field">
                 <label htmlFor="password" className="lb-visually-hidden">Password</label>
-                <input id="password" name="password" type="password" placeholder="Password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required value={password} onChange={(e) => setPassword(e.target.value)} disabled={!canUseAuth || loading} />
+                <input id="password" name="password" type="password" placeholder="Password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
               </div>
               {mode === 'signup' && (
                 <div className="lb-field">
                   <label htmlFor="confirmPassword" className="lb-visually-hidden">Confirm Password</label>
-                  <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm Password" autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={!canUseAuth || loading} />
+                  <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm Password" autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={loading} />
                 </div>
               )}
 
               {!!error && <div role="alert" style={{ color: '#E11D48', marginBottom: 8 }}>{error}</div>}
               {!!info && <div role="status" style={{ color: '#059669', marginBottom: 8 }}>{info}</div>}
 
-              <button type="submit" className="lb-primary-btn" disabled={!canUseAuth || loading}>
+              <button type="submit" className="lb-primary-btn" disabled={loading}>
                 {loading ? 'Please wait…' : mode === 'login' ? 'Log In' : 'Sign Up'}
               </button>
             </form>
@@ -256,7 +299,7 @@ function AuthLanding({ onLogin, dark = false }) {
   )
 }
 
-function Navbar({ showBrand, dark, onToggleTheme, onNavigate }) {
+function Navbar({ dark, onToggleTheme, onNavigate, activeRoute }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchMounted, setSearchMounted] = useState(false)
   const [query, setQuery] = useState('')
@@ -317,13 +360,19 @@ function Navbar({ showBrand, dark, onToggleTheme, onNavigate }) {
           </button>
 
           <div className="home-nav-item">
-            <a href="#" className="home-nav-link" onClick={(e) => { e.preventDefault(); onNavigate('home') }}>Menu</a>
+            <a
+              href="#"
+              className={`home-nav-link${activeRoute === 'home' ? ' is-active' : ''}`}
+              onClick={(e) => { e.preventDefault(); onNavigate('home') }}
+            >
+              Menu
+            </a>
           </div>
 
           <div ref={cafRef} className={`home-nav-item has-dropdown${cafesOpen ? ' is-open' : ''}`} onKeyDown={onCafKey}>
             <a
               href="#"
-              className="home-nav-link is-active"
+              className={`home-nav-link${activeRoute === 'cafeteria' ? ' is-active' : ''}`}
               aria-haspopup="true"
               aria-expanded={cafesOpen ? 'true' : 'false'}
               onClick={(e) => { e.preventDefault(); setCafesOpen((o) => !o) }}
@@ -335,6 +384,16 @@ function Navbar({ showBrand, dark, onToggleTheme, onNavigate }) {
               <a ref={(el) => cafItemsRef.current[1] = el} href="#" role="menuitem" className="home-dropdown-item" onClick={(e) => { e.preventDefault(); setCafesOpen(false); onNavigate('cafeteria', { slug: 'v1', name: "Mudie's (Village 1)" }) }}>Mudie's (Village 1)</a>
               <a ref={(el) => cafItemsRef.current[2] = el} href="#" role="menuitem" className="home-dropdown-item" onClick={(e) => { e.preventDefault(); setCafesOpen(false); onNavigate('cafeteria', { slug: 'rev', name: 'REVelation (Ron Eydt Village)' }) }}>REVelation (Ron Eydt Village)</a>
             </div>
+          </div>
+
+          <div className="home-nav-item">
+            <a
+              href="#"
+              className={`home-nav-link${activeRoute === 'reviews' ? ' is-active' : ''}`}
+              onClick={(e) => { e.preventDefault(); onNavigate('reviews') }}
+            >
+              Reviews
+            </a>
           </div>
 
           <div className="home-nav-item">
@@ -397,7 +456,7 @@ function Navbar({ showBrand, dark, onToggleTheme, onNavigate }) {
 function HomePage({ dark, onToggleTheme, onNavigate }) {
   return (
     <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
-      <Navbar showBrand={true} dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} />
+      <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="home" />
 
       <main className="home-main" role="main">
         <div className="home-container">
@@ -459,10 +518,112 @@ function HomePage({ dark, onToggleTheme, onNavigate }) {
   )
 }
 
+function ReviewsPage({ dark, onToggleTheme, onNavigate }) {
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [selectedMenu, setSelectedMenu] = useState('all')
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const res = await fetchApi('/api/reviews')
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(payload?.error || 'Failed to load reviews')
+        }
+        if (mounted) setReviews(Array.isArray(payload) ? payload : [])
+      } catch (e) {
+        if (mounted) setError(e.message || 'Failed to load reviews')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
+
+  const menuOptions = useMemo(() => {
+    const ids = new Set()
+    reviews.forEach((r) => { if (r.menuId) ids.add(r.menuId) })
+    return Array.from(ids.values()).sort()
+  }, [reviews])
+
+  const filtered = useMemo(() => {
+    if (selectedMenu === 'all') return reviews
+    return reviews.filter((r) => r.menuId === selectedMenu)
+  }, [reviews, selectedMenu])
+
+  return (
+    <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
+      <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="reviews" />
+
+      <main className="home-main" role="main">
+        <div className="home-container">
+          <h1 className="page-title">Community Reviews</h1>
+          <p className="page-subtitle">See what diners are saying across menus.</p>
+
+          <div className="reviews-controls">
+            <label className="reviews-filter">
+              <span>Filter by menu</span>
+              <select value={selectedMenu} onChange={(e) => setSelectedMenu(e.target.value)}>
+                <option value="all">All menus</option>
+                {menuOptions.map((id) => (
+                  <option key={id} value={id}>{formatMenuId(id)}</option>
+                ))}
+              </select>
+            </label>
+            <button className="pill-link" type="button" onClick={() => onNavigate('home')}>Back to menus</button>
+          </div>
+
+          {loading && <div className="reviews-loading">Loading reviews…</div>}
+          {!!error && <div className="reviews-error" role="alert">{error}</div>}
+
+          {!loading && !error && filtered.length === 0 && (
+            <div className="reviews-empty">No reviews yet. Be the first to share your thoughts!</div>
+          )}
+
+          <div className="reviews">
+            {filtered.map((review) => {
+              const img = review.image ? `data:${review.image.mime};base64,${review.image.base64}` : null
+              return (
+                <div key={review.id} className="review-item">
+                  <div className="review-head">
+                    <Avatar size={24} />
+                    <div>
+                      <strong>{review.author || 'Guest'}</strong>
+                      <div className="review-meta">
+                        {formatMenuId(review.menuId)} · {starsFor(review.rating)} · {new Date(review.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="review-body">{review.body}</div>
+                  {img && (
+                    <div className="review-image">
+                      <img src={img} alt={`${formatMenuId(review.menuId)} review`} />
+                      {review.mlLabel && <span className="review-badge">ML: {review.mlLabel}</span>}
+                    </div>
+                  )}
+                  {!img && review.mlLabel && (
+                    <div className="review-footnote">ML label: {review.mlLabel}</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
 function PastMealsPage({ dark, onToggleTheme, onNavigate }) {
   return (
     <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
-      <Navbar showBrand={true} dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} />
+      <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="history" />
       <main className="home-main" role="main">
         <div className="home-container">
           <h1 className="page-title">Past Meals</h1>
@@ -501,7 +662,7 @@ function CafeteriaPage({ dark, onToggleTheme, onNavigate, params }) {
   const cafe = data?.cafeterias?.[slug]
   return (
     <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
-      <Navbar showBrand={true} dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} />
+      <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="cafeteria" />
       <main className="home-main" role="main">
         <div className="home-container">
           <div className="cafe-header">
@@ -549,43 +710,237 @@ function CafeteriaPage({ dark, onToggleTheme, onNavigate, params }) {
   )
 }
 
-function DishPage({ dark, onToggleTheme, onNavigate, params }) {
-  const dish = params?.slug?.replace(/-/g, ' ') || 'Dish'
+function DishPage({ dark, onToggleTheme, onNavigate, params, session }) {
+  const menuId = params?.slug || ''
+  const dishName = formatMenuId(menuId) || 'Dish'
+  const [reviews, setReviews] = useState([])
+  const [loadingReviews, setLoadingReviews] = useState(true)
+  const [reviewsError, setReviewsError] = useState('')
+  const [rating, setRating] = useState(5)
+  const [body, setBody] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [submitError, setSubmitError] = useState('')
+  const [submitMessage, setSubmitMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      setLoadingReviews(true)
+      setReviewsError('')
+      try {
+        const res = await fetchApi(`/api/reviews?menuId=${encodeURIComponent(menuId)}`)
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(payload?.error || 'Failed to load reviews')
+        }
+        if (mounted) setReviews(Array.isArray(payload) ? payload : [])
+      } catch (e) {
+        if (mounted) setReviewsError(e.message || 'Failed to load reviews')
+      } finally {
+        if (mounted) setLoadingReviews(false)
+      }
+    }
+    if (menuId) load()
+    return () => { mounted = false }
+  }, [menuId])
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview)
+    }
+  }, [imagePreview])
+
+  const handleFileSelect = (file) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setSubmitError('Only image files are supported.')
+      return
+    }
+    setSubmitError('')
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  const onFileInputChange = (e) => {
+    handleFileSelect(e.target.files?.[0])
+  }
+
+  const onDrop = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer?.files?.[0]
+    handleFileSelect(file)
+  }
+
+  const onDragOver = (e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const onDragLeave = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const clearImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const refreshReviews = async () => {
+    setLoadingReviews(true)
+    setReviewsError('')
+    try {
+      const res = await fetchApi(`/api/reviews?menuId=${encodeURIComponent(menuId)}`)
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload?.error || 'Failed to load reviews')
+      setReviews(Array.isArray(payload) ? payload : [])
+    } catch (e) {
+      setReviewsError(e.message || 'Failed to load reviews')
+    } finally {
+      setLoadingReviews(false)
+    }
+  }
+
+  const onSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitError('')
+    setSubmitMessage('')
+    if (!body.trim()) {
+      setSubmitError('Tell us a bit about the dish.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const form = new FormData()
+      form.append('menuId', menuId)
+      form.append('rating', String(rating))
+      form.append('body', body.trim())
+      const author = session?.user?.user_metadata?.full_name || session?.user?.email || 'You'
+      form.append('author', author)
+      if (imageFile) {
+        form.append('image', imageFile)
+      }
+      const res = await fetchApi('/api/reviews', { method: 'POST', body: form })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to submit review')
+      }
+      setSubmitMessage('Review submitted!')
+      setBody('')
+      setRating(5)
+      clearImage()
+      setReviews((prev) => [payload, ...prev])
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to submit review')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
-      <Navbar showBrand={true} dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} />
+      <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="dish" />
       <main className="home-main" role="main">
         <div className="home-container">
-          <h1 className="page-title">{dish[0].toUpperCase() + dish.slice(1)}</h1>
-          <div className="dish-meta-block">⭐ 4.5 · 100+ reviews · Served at <button className="pill-link" onClick={() => onNavigate('cafeteria', { slug: 'rev', name: 'REVelation' })}>REV</button></div>
+          <h1 className="page-title">{dishName}</h1>
+          <div className="dish-meta-block">Served at <button className="pill-link" onClick={() => onNavigate('cafeteria', { slug: 'rev', name: 'REVelation' })}>REV</button></div>
 
-          <div className="rating-summary">
-            <div className="rating-score">4.5</div>
-            <div className="rating-bars">
-              <div className="bar"><span style={{ width: '70%' }} /></div>
-              <div className="bar"><span style={{ width: '20%' }} /></div>
-              <div className="bar"><span style={{ width: '6%' }} /></div>
-              <div className="bar"><span style={{ width: '3%' }} /></div>
-              <div className="bar"><span style={{ width: '1%' }} /></div>
-            </div>
-          </div>
+          <section aria-label="Reviews" className="reviews-section">
+            {loadingReviews && <div className="reviews-loading">Loading reviews…</div>}
+            {!!reviewsError && <div className="reviews-error" role="alert">{reviewsError}</div>}
 
-          <div className="reviews">
-            <div className="review-item">
-              <div className="review-head"><Avatar size={24} /> <strong>Sai</strong> · ⭐⭐⭐⭐⭐ · 2h ago</div>
-              <div className="review-body">Crispy and juicy, great portion size.</div>
-            </div>
-            <div className="review-item">
-              <div className="review-head"><Avatar size={24} /> <strong>Alex</strong> · ⭐⭐⭐⭐ · 1d ago</div>
-              <div className="review-body">Nice flavor, could be spicier.</div>
-            </div>
-          </div>
+            {!loadingReviews && !reviewsError && (
+              <div className="reviews">
+                {reviews.length === 0 && <div className="reviews-empty">No reviews yet. Be the first!</div>}
+                {reviews.map((review) => {
+                  const img = review.image ? `data:${review.image.mime};base64,${review.image.base64}` : null;
+                  return (
+                    <div key={review.id} className="review-item">
+                      <div className="review-head">
+                        <Avatar size={24} />
+                        <div>
+                          <strong>{review.author || 'Guest'}</strong>
+                          <div className="review-meta">{starsFor(review.rating)} · {new Date(review.createdAt).toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="review-body">{review.body}</div>
+                      {img && (
+                        <div className="review-image">
+                          <img src={img} alt={`${dishName} review`} />
+                          {review.mlLabel && <span className="review-badge">ML: {review.mlLabel}</span>}
+                        </div>
+                      )}
+                      {!img && review.mlLabel && <div className="review-footnote">ML label: {review.mlLabel}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-          <div className="review-composer">
-            <div className="stars">⭐⭐⭐⭐⭐</div>
-            <textarea rows="3" placeholder="How was portion, taste, freshness?" />
-            <button className="lb-primary-btn" type="button" disabled>Submit</button>
-          </div>
+          <form className="review-composer" onSubmit={onSubmit}>
+            <h2>Leave a review</h2>
+            <div className="review-rating">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`star-btn${rating >= value ? ' is-active' : ''}`}
+                  onClick={() => setRating(value)}
+                  aria-label={`Rate ${value} star${value > 1 ? 's' : ''}`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <textarea
+              rows="3"
+              placeholder="How was portion, taste, freshness?"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+            />
+
+            <div
+              className={`review-dropzone${isDragging ? ' is-dragging' : ''}${imageFile ? ' has-image' : ''}`}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  fileInputRef.current?.click()
+                }
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {!imagePreview && <span>Drag & drop a food photo or click to upload</span>}
+              {imagePreview && (
+                <div className="dropzone-preview">
+                  <img src={imagePreview} alt="Selected preview" />
+                  <button type="button" className="pill-link" onClick={(e) => { e.stopPropagation(); clearImage() }}>Remove photo</button>
+                </div>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileInputChange} hidden />
+            </div>
+
+            {!!submitError && <div className="reviews-error" role="alert">{submitError}</div>}
+            {!!submitMessage && <div className="reviews-success" role="status">{submitMessage}</div>}
+
+            <div className="review-actions">
+              <button className="lb-primary-btn" type="submit" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit review'}</button>
+              <button className="pill-link" type="button" onClick={refreshReviews} disabled={loadingReviews}>Refresh</button>
+            </div>
+          </form>
         </div>
       </main>
     </div>
@@ -596,7 +951,7 @@ function ProfilePage({ dark, onToggleTheme, onNavigate, params }) {
   const username = params?.username || 'me'
   return (
     <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
-      <Navbar showBrand={true} dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} />
+      <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="profile" />
       <main className="home-main" role="main">
         <div className="home-container">
           <div className="profile-header">
@@ -682,7 +1037,6 @@ export default function App() {
       setRoute('home')
       setParams({})
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, route])
 
   const navigate = (name, p = {}) => {
@@ -700,14 +1054,14 @@ export default function App() {
   const toggleTheme = () => {
     setDark((d) => {
       const next = !d
-      try { localStorage.setItem('loobites:theme', next ? 'dark' : 'light') } catch {}
+      try { localStorage.setItem('loobites:theme', next ? 'dark' : 'light') } catch { /* localStorage unavailable */ }
       return next
     })
   }
 
   if (route === 'auth') {
     return (
-      <AuthLanding dark={dark} onLogin={() => navigate('home')} />
+      <AuthLanding dark={dark} />
     )
   }
   if (route === 'home') {
@@ -716,11 +1070,14 @@ export default function App() {
   if (route === 'history') {
     return <PastMealsPage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} />
   }
+  if (route === 'reviews') {
+    return <ReviewsPage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} />
+  }
   if (route === 'cafeteria') {
     return <CafeteriaPage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} />
   }
   if (route === 'dish') {
-    return <DishPage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} />
+    return <DishPage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} session={session} />
   }
   if (route === 'profile') {
     return <ProfilePage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} />

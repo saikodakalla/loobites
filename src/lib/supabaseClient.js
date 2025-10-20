@@ -15,7 +15,6 @@ const anonKey =
 
 if (!url || !anonKey) {
   // Surface a helpful message in dev if env is missing/misnamed
-  // eslint-disable-next-line no-console
   console.warn('Supabase env vars missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or LOOBITES_APP_*).')
 }
 
