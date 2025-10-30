@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMenus } from './hooks/useMenus'
 import { supabase } from './lib/supabaseClient'
+import { getEmptyStats, getUserStats } from './lib/userStats'
 
 const API_BASES = (() => {
   const bases = []
@@ -947,8 +948,47 @@ function DishPage({ dark, onToggleTheme, onNavigate, params, session }) {
   )
 }
 
-function ProfilePage({ dark, onToggleTheme, onNavigate, params }) {
+function ProfilePage({ dark, onToggleTheme, onNavigate, params, session }) {
   const username = params?.username || 'me'
+  const [stats, setStats] = useState(() => getEmptyStats())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    const userId = session?.user?.id
+    if (!userId) {
+      setStats(getEmptyStats())
+      setLoading(true)
+      setError(null)
+      return () => {
+        active = false
+      }
+    }
+
+    setLoading(true)
+    setError(null)
+
+    ;(async () => {
+      try {
+        const data = await getUserStats(userId)
+        if (!active) return
+        setStats(data)
+      } catch (err) {
+        if (!active) return
+        setStats(getEmptyStats())
+        setError(err?.message || 'Failed to load stats')
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [session?.user?.id])
+
+  const profileName = session?.user?.user_metadata?.full_name || session?.user?.email || 'Your Name'
   return (
     <div className={`home-app ${dark ? 'theme-dark' : ''}`}>
       <Navbar dark={dark} onToggleTheme={onToggleTheme} onNavigate={onNavigate} activeRoute="profile" />
@@ -957,15 +997,25 @@ function ProfilePage({ dark, onToggleTheme, onNavigate, params }) {
           <div className="profile-header">
             <Avatar size={56} />
             <div className="profile-meta">
-              <div className="profile-name">Your Name</div>
+              <div className="profile-name">{profileName}</div>
               <div className="profile-handle">@{username}</div>
             </div>
           </div>
           <div className="stats-grid">
-            <div className="stat-tile"><div className="num">12</div><div className="label">Reviews</div></div>
-            <div className="stat-tile"><div className="num">8</div><div className="label">Photos</div></div>
-            <div className="stat-tile"><div className="num">34</div><div className="label">Helpful</div></div>
+            <div className="stat-tile">
+              <div className="num">{loading ? '...' : stats.reviewsPosted}</div>
+              <div className="label">Reviews</div>
+            </div>
+            <div className="stat-tile">
+              <div className="num">{loading ? '...' : stats.photosPosted}</div>
+              <div className="label">Photos</div>
+            </div>
+            <div className="stat-tile">
+              <div className="num">{loading ? '...' : stats.helpfulReceived}</div>
+              <div className="label">Helpful</div>
+            </div>
           </div>
+          {!!error && <div className="reviews-error" role="alert">{error}</div>}
         </div>
       </main>
     </div>
@@ -1080,7 +1130,7 @@ export default function App() {
     return <DishPage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} session={session} />
   }
   if (route === 'profile') {
-    return <ProfilePage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} />
+    return <ProfilePage dark={dark} onToggleTheme={toggleTheme} onNavigate={navigate} params={params} session={session} />
   }
   return null
 }
