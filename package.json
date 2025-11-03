@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n \"server,web\" -c \"cyan,magenta\" \"npm:server:watch\" \"vite\"",
-    "server": "node server/index.js",
-    "server:watch": "nodemon --watch server server/index.js",
+    "dev": "concurrently -k -n \"server,web\" -c \"cyan,magenta\" \"npm:server:dev\" \"vite\"",
+    "server": "node --experimental-modules server/index.js",
+    "server:dev": "nodemon --watch server server/index.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

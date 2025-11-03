@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Avatar } from "./Avatar";
@@ -9,6 +9,7 @@ import {
   SearchIcon,
   SunIcon,
 } from "./icons";
+import { useMenus } from "../hooks/useMenus";
 
 export interface NavbarProps {
   dark: boolean;
@@ -26,11 +27,9 @@ export function Navbar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchMounted, setSearchMounted] = useState(false);
   const [query, setQuery] = useState("");
-  const [cafesOpen, setCafesOpen] = useState(false);
   const [shrink, setShrink] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const cafItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
-  const cafRef = useRef<HTMLDivElement | null>(null);
+  const { data } = useMenus();
 
   useEffect(() => {
     const onScroll = () => setShrink(window.scrollY > 6);
@@ -55,32 +54,24 @@ export function Navbar({
     if (e.key === "Escape") closeSearch();
   };
 
-  const onCafKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (!cafesOpen) return;
-    const items = cafItemsRef.current.filter((el): el is HTMLAnchorElement =>
-      Boolean(el),
-    );
-    const idx = items.findIndex((el) => el === document.activeElement);
-    if (e.key === "Escape") setCafesOpen(false);
-    else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      (items[idx + 1] || items[0])?.focus();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      (items[idx - 1] || items[items.length - 1])?.focus();
-    }
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!cafesOpen) return;
-      if (cafRef.current && !cafRef.current.contains(event.target as Node)) {
-        setCafesOpen(false);
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || !data?.cafeterias) return [] as { name: string; cafeteria: string; station: string }[];
+    const out: { name: string; cafeteria: string; station: string }[] = [];
+    const cafes: any = data.cafeterias as any;
+    for (const [slug, cafe] of Object.entries(cafes)) {
+      for (const st of cafe.stations || []) {
+        for (const it of st.items || []) {
+          const name = String(it.name || "");
+          if (name.toLowerCase().includes(q)) {
+            out.push({ name, cafeteria: cafe.name || slug, station: st.station || "Menu" });
+            if (out.length >= 12) return out;
+          }
+        }
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [cafesOpen]);
+    }
+    return out;
+  }, [query, data]);
 
   return (
     <header className={`home-header${shrink ? " shrink" : ""}`} role="banner">
@@ -111,79 +102,6 @@ export function Navbar({
             >
               Menu
             </a>
-          </div>
-
-          <div
-            ref={cafRef}
-            className={`home-nav-item has-dropdown${
-              cafesOpen ? " is-open" : ""
-            }`}
-            onKeyDown={onCafKey}
-          >
-            <a
-              href="#"
-              className={`home-nav-link${
-                activeRoute === "cafeteria" ? " is-active" : ""
-              }`}
-              aria-haspopup="true"
-              aria-expanded={cafesOpen ? "true" : "false"}
-              onClick={(e) => {
-                e.preventDefault();
-                setCafesOpen((open) => !open);
-              }}
-            >
-              Cafeterias
-            </a>
-            <div className="home-dropdown" role="menu" aria-label="Cafeterias">
-              <a
-                ref={(el) => (cafItemsRef.current[0] = el)}
-                href="#"
-                role="menuitem"
-                className="home-dropdown-item"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setCafesOpen(false);
-                  onNavigate("cafeteria", {
-                    slug: "cmh",
-                    name: "The Market (CMH)",
-                  });
-                }}
-              >
-                The Market (CMH)
-              </a>
-              <a
-                ref={(el) => (cafItemsRef.current[1] = el)}
-                href="#"
-                role="menuitem"
-                className="home-dropdown-item"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setCafesOpen(false);
-                  onNavigate("cafeteria", {
-                    slug: "v1",
-                    name: "Mudie's (Village 1)",
-                  });
-                }}
-              >
-                Mudie's (Village 1)
-              </a>
-              <a
-                ref={(el) => (cafItemsRef.current[2] = el)}
-                href="#"
-                role="menuitem"
-                className="home-dropdown-item"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setCafesOpen(false);
-                  onNavigate("cafeteria", {
-                    slug: "rev",
-                    name: "REVelation (Ron Eydt Village)",
-                  });
-                }}
-              >
-                REVelation (Ron Eydt Village)
-              </a>
-            </div>
           </div>
 
           <div className="home-nav-item">
@@ -257,12 +175,43 @@ export function Navbar({
               >
                 Profile
               </a>
-              <a href="#" role="menuitem" onClick={(e) => e.preventDefault()}>
-                My posts
+              <div className="menu-sep" aria-hidden="true" />
+              <div className="menu-label" aria-hidden="true">Account</div>
+              <a
+                href="#"
+                role="menuitem"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate("profile", { username: "me", manage: "email" });
+                }}
+              >
+                Change email
               </a>
-              <a href="#" role="menuitem" onClick={(e) => e.preventDefault()}>
-                Settings
+              <a
+                href="#"
+                role="menuitem"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate("profile", { username: "me", manage: "username" });
+                }}
+              >
+                Change username
               </a>
+              <a
+                href="#"
+                role="menuitem"
+                className="danger"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (confirm("Delete your account? This cannot be undone.")) {
+                    // Placeholder: app needs a server-side delete flow; for now, sign out.
+                    try { await supabase?.auth?.signOut?.(); } finally { onNavigate("auth"); }
+                  }
+                }}
+              >
+                Delete account
+              </a>
+              <div className="menu-sep" aria-hidden="true" />
               <a
                 href="#"
                 role="menuitem"
@@ -315,15 +264,31 @@ export function Navbar({
               </button>
             </div>
             <div className="cmd-list" role="listbox" aria-label="Suggestions">
-              <div className="cmd-item" role="option">
-                Try “Butter Chicken”
-              </div>
-              <div className="cmd-item" role="option">
-                Open “REVelation”
-              </div>
-              <div className="cmd-item" role="option">
-                See “Past Meals”
-              </div>
+              {query.trim().length === 0 && (
+                <div className="cmd-item" role="option" style={{opacity:0.7}}>
+                  Start typing to search today’s dishes…
+                </div>
+              )}
+              {query.trim().length > 0 && results.length === 0 && (
+                <div className="cmd-item" role="option" style={{opacity:0.7}}>
+                  No matches for “{query}”.
+                </div>
+              )}
+              {results.map((r, i) => (
+                <div
+                  key={`${r.cafeteria}-${r.station}-${r.name}-${i}`}
+                  className="cmd-item"
+                  role="option"
+                  onClick={() => {
+                    setSearchOpen(false);
+                    setTimeout(() => setSearchMounted(false), 200);
+                    onNavigate("dish", { slug: r.name.toLowerCase().replace(/\s+/g, "-") });
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>{r.name}</div>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>{r.cafeteria} • {r.station}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

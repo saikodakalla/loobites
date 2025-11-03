@@ -9,6 +9,7 @@ import { Navbar } from "../components/Navbar";
 import { Avatar } from "../components/Avatar";
 import { fetchApi } from "../lib/api";
 import { formatMenuId, starsFor } from "../lib/format";
+import { validateImage } from "../lib/validateImage";
 
 interface DishPageProps {
   dark: boolean;
@@ -54,6 +55,8 @@ export function DishPage({
   const [submitting, setSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationReason, setValidationReason] = useState<string>("");
 
   useEffect(() => {
     let mounted = true;
@@ -98,9 +101,24 @@ export function DishPage({
       return;
     }
     setSubmitError("");
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    (async () => {
+      const verdict = await validateImage(file);
+      if (!verdict.ok) {
+        setSubmitError(verdict.error || "Validation failed. Try again.");
+        return;
+      }
+      if (!verdict.isFood) {
+        setValidationReason(
+          verdict.reason ||
+            "We couldn’t confirm it’s food. Try a closer, well-lit photo of the dish."
+        );
+        setShowValidationModal(true);
+        return;
+      }
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    })();
   };
 
   const onFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -372,6 +390,40 @@ export function DishPage({
               </button>
             </div>
           </form>
+          {showValidationModal && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="cmd-overlay"
+              onClick={() => setShowValidationModal(false)}
+            >
+              <div
+                className="cmd-dialog"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: 520 }}
+              >
+                <div className="cmd-input-row" style={{ padding: 0 }}>
+                  <div className="page-subtitle" style={{ margin: 0 }}>
+                    We couldn’t confirm it’s food. Try a closer, well-lit photo of the dish.
+                  </div>
+                </div>
+                {!!validationReason && (
+                  <div className="reviews-error" style={{ marginTop: 12 }}>
+                    {validationReason}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                  <button
+                    type="button"
+                    className="lb-primary-btn"
+                    onClick={() => setShowValidationModal(false)}
+                  >
+                    Okay
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
