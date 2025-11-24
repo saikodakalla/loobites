@@ -1,6 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
-import { Auth } from '@supabase/auth-ui-react'
+import { createClient } from "@supabase/supabase-js";
+import { Auth } from "@supabase/auth-ui-react";
 
-const supabase = createClient('<INSERT PROJECT URL>', '<INSERT PROJECT ANON API KEY>')
+const supabaseUrl = import.meta.env.SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.UPABASE_ANON_KEY;
 
-const App = () => <Auth supabaseClient={supabase} />
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
