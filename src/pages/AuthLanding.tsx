@@ -25,7 +25,7 @@ export function AuthLanding({ dark = false }: AuthLandingProps) {
     setInfo("");
     if (!canUseAuth) {
       setError(
-        "Authentication is currently unavailable. Please contact the site administrator.",
+        "Authentication is currently unavailable. Please contact the site administrator."
       );
       return;
     }
@@ -48,7 +48,7 @@ export function AuthLanding({ dark = false }: AuthLandingProps) {
       if (err) setError(err.message);
       else
         setInfo(
-          "Sign up successful. Check your email if confirmation is required.",
+          "Sign up successful. Check your email if confirmation is required."
         );
       return;
     }
@@ -70,7 +70,7 @@ export function AuthLanding({ dark = false }: AuthLandingProps) {
     setInfo("");
     if (!canUseAuth) {
       setError(
-        "Authentication is currently unavailable. Please contact the site administrator.",
+        "Authentication is currently unavailable. Please contact the site administrator."
       );
       return;
     }
@@ -189,9 +189,7 @@ export function AuthLanding({ dark = false }: AuthLandingProps) {
                     autoComplete="new-password"
                     required
                     value={confirmPassword}
-                    onChange={(event) =>
-                      setConfirmPassword(event.target.value)
-                    }
+                    onChange={(event) => setConfirmPassword(event.target.value)}
                     disabled={loading}
                   />
                 </div>

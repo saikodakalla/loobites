@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { ResidenceMenu } from "../types";
+import { fetchApi } from "../lib/api";
 
 interface MenusResponse {
   date: string;
   residences: ResidenceMenu[];
-  cafeterias: Record<string, { slug: string; name: string; stations: { station: string; items: { name: string; tags?: string[] }[] }[] }>;
+  cafeterias: Record<
+    string,
+    {
+      slug: string;
+      name: string;
+      stations: {
+        station: string;
+        items: { name: string; tags?: string[] }[];
+      }[];
+    }
+  >;
   availableCafeterias: string[];
 }
 
@@ -18,28 +29,11 @@ export function useMenus(pollMs = 5 * 60 * 1000) {
   async function load() {
     setLoading(true);
     try {
-      const envBase = (import.meta?.env?.VITE_API_BASE as string) || "";
-      const candidates: string[] = [];
-      if (envBase) candidates.push(envBase);
-      candidates.push("");
-      candidates.push("http://localhost:4000");
+      const res = await fetchApi(`/api/menus`);
+      const json = (await res.json()) as MenusResponse;
 
-      let lastErr: unknown = null;
-      for (const base of candidates) {
-        try {
-          const r = await fetch(`${base}/api/menus`, { headers: { Accept: "application/json" } });
-          if (!r.ok) { lastErr = new Error(`HTTP ${r.status}`); continue; }
-          const j = (await r.json()) as MenusResponse;
-          setData(j);
-          lastCache = j;
-          lastErr = null;
-          break;
-        } catch (e) {
-          lastErr = e;
-          continue;
-        }
-      }
-      if (lastErr) throw lastErr;
+      setData(json);
+      lastCache = json;
     } finally {
       setLoading(false);
     }
@@ -58,4 +52,3 @@ export function useMenus(pollMs = 5 * 60 * 1000) {
 
   return { data, loading, refresh: load } as const;
 }
-

@@ -42,7 +42,11 @@ export function CafeteriaPage({
               <button type="button" className="cafe-tool">
                 Follow
               </button>
-              <button type="button" className="cafe-tool" aria-label="Notify me">
+              <button
+                type="button"
+                className="cafe-tool"
+                aria-label="Notify me"
+              >
                 <BellIcon />
               </button>
               <button type="button" className="cafe-tool">

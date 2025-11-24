@@ -3,7 +3,6 @@ import { supabase } from "./lib/supabaseClient";
 import AuthLanding from "./pages/AuthLanding";
 import HomePage from "./pages/HomePage";
 import PastMealsPage from "./pages/PastMealsPage";
-import ReviewsPage from "./pages/ReviewsPage";
 import CafeteriaPage from "./pages/CafeteriaPage";
 import DishPage from "./pages/DishPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -47,11 +46,17 @@ export default function App() {
     }
   };
 
-  const readPersistedRoute = (): { name: RouteName; params: RouteParams } | null => {
+  const readPersistedRoute = (): {
+    name: RouteName;
+    params: RouteParams;
+  } | null => {
     try {
       const raw = localStorage.getItem(LAST_ROUTE_KEY);
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as { name?: RouteName; params?: RouteParams } | null;
+      const parsed = JSON.parse(raw) as {
+        name?: RouteName;
+        params?: RouteParams;
+      } | null;
       if (!parsed || !parsed.name || parsed.name === "auth") return null;
       return { name: parsed.name, params: parsed.params || {} };
     } catch {

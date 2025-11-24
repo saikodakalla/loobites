@@ -1,26 +1,32 @@
-const API_BASES = (() => {
-  const bases: string[] = [];
-  const envBase = import.meta?.env?.VITE_API_BASE;
-  if (envBase) bases.push(envBase);
-  bases.push("");
-  bases.push("http://localhost:4000");
-  return bases;
-})();
+const API_URL = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
-export async function fetchApi(path: string, options: RequestInit = {}) {
-  let lastErr: unknown = null;
-  for (const base of API_BASES) {
-    try {
-      const res = await fetch(`${base}${path}`, options);
-      return res;
-    } catch (err) {
-      lastErr = err;
-      continue;
-    }
+export async function fetchApi(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const url = `${API_URL}${path}`;
+  const { headers: userHeaders, method: userMethod, ...rest } = options;
+  const method = (userMethod ?? "GET").toUpperCase();
+
+  const headers = new Headers(userHeaders || undefined);
+  if (method === "GET" && !headers.has("Accept")) {
+    headers.set("Accept", "application/json");
   }
-  throw lastErr instanceof Error ? lastErr : new Error("Unknown fetch error");
-}
 
-export function getApiBases() {
-  return [...API_BASES];
+  try {
+    const res = await fetch(url, {
+      ...rest,
+      method,
+      headers,
+    });
+
+    if (!res.ok) {
+      throw new Error(`API error ${res.status}`);
+    }
+
+    return res;
+  } catch (err) {
+    console.error("fetchApi error:", err);
+    throw err;
+  }
 }

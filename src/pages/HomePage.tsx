@@ -88,7 +88,11 @@ export function HomePage({ dark, onToggleTheme, onNavigate }: HomePageProps) {
                 }}
               >
                 <div className="venue-media wide">
-                  <img src={REV_IMG} alt="REVelation (Ron Eydt Village)" loading="lazy" />
+                  <img
+                    src={REV_IMG}
+                    alt="REVelation (Ron Eydt Village)"
+                    loading="lazy"
+                  />
                 </div>
                 <div className="venue-text">
                   <div className="venue-title">REVelation</div>

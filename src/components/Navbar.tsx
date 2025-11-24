@@ -2,13 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Avatar } from "./Avatar";
-import {
-  BellIcon,
-  LogoMark,
-  MoonIcon,
-  SearchIcon,
-  SunIcon,
-} from "./icons";
+import { BellIcon, LogoMark, MoonIcon, SearchIcon, SunIcon } from "./icons";
 import { useMenus } from "../hooks/useMenus";
 
 export interface NavbarProps {
@@ -55,16 +49,34 @@ export function Navbar({
   };
 
   const results = useMemo(() => {
+    type Cafeteria = {
+      slug: string;
+      name: string;
+      stations: {
+        station: string;
+        items: { name: string; tags?: string[] }[];
+      }[];
+    };
+
     const q = query.trim().toLowerCase();
-    if (!q || !data?.cafeterias) return [] as { name: string; cafeteria: string; station: string }[];
+    if (!q || !data?.cafeterias)
+      return [] as { name: string; cafeteria: string; station: string }[];
+
+    const cafes = data.cafeterias as Record<string, Cafeteria>;
     const out: { name: string; cafeteria: string; station: string }[] = [];
-    const cafes: any = data.cafeterias as any;
+
     for (const [slug, cafe] of Object.entries(cafes)) {
-      for (const st of cafe.stations || []) {
-        for (const it of st.items || []) {
-          const name = String(it.name || "");
+      const stations = cafe.stations ?? [];
+      for (const st of stations) {
+        const items = st.items ?? [];
+        for (const it of items) {
+          const name = String(it?.name ?? "");
           if (name.toLowerCase().includes(q)) {
-            out.push({ name, cafeteria: cafe.name || slug, station: st.station || "Menu" });
+            out.push({
+              name,
+              cafeteria: cafe.name ?? slug,
+              station: st.station ?? "Menu",
+            });
             if (out.length >= 12) return out;
           }
         }
@@ -101,21 +113,6 @@ export function Navbar({
               }}
             >
               Menu
-            </a>
-          </div>
-
-          <div className="home-nav-item">
-            <a
-              href="#"
-              className={`home-nav-link${
-                activeRoute === "reviews" ? " is-active" : ""
-              }`}
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate("reviews");
-              }}
-            >
-              Reviews
             </a>
           </div>
 
@@ -176,7 +173,9 @@ export function Navbar({
                 Profile
               </a>
               <div className="menu-sep" aria-hidden="true" />
-              <div className="menu-label" aria-hidden="true">Account</div>
+              <div className="menu-label" aria-hidden="true">
+                Account
+              </div>
               <a
                 href="#"
                 role="menuitem"
@@ -205,7 +204,11 @@ export function Navbar({
                   e.preventDefault();
                   if (confirm("Delete your account? This cannot be undone.")) {
                     // Placeholder: app needs a server-side delete flow; for now, sign out.
-                    try { await supabase?.auth?.signOut?.(); } finally { onNavigate("auth"); }
+                    try {
+                      await supabase?.auth?.signOut?.();
+                    } finally {
+                      onNavigate("auth");
+                    }
                   }
                 }}
               >
@@ -265,12 +268,20 @@ export function Navbar({
             </div>
             <div className="cmd-list" role="listbox" aria-label="Suggestions">
               {query.trim().length === 0 && (
-                <div className="cmd-item" role="option" style={{opacity:0.7}}>
+                <div
+                  className="cmd-item"
+                  role="option"
+                  style={{ opacity: 0.7 }}
+                >
                   Start typing to search today’s dishes…
                 </div>
               )}
               {query.trim().length > 0 && results.length === 0 && (
-                <div className="cmd-item" role="option" style={{opacity:0.7}}>
+                <div
+                  className="cmd-item"
+                  role="option"
+                  style={{ opacity: 0.7 }}
+                >
                   No matches for “{query}”.
                 </div>
               )}
@@ -282,11 +293,15 @@ export function Navbar({
                   onClick={() => {
                     setSearchOpen(false);
                     setTimeout(() => setSearchMounted(false), 200);
-                    onNavigate("dish", { slug: r.name.toLowerCase().replace(/\s+/g, "-") });
+                    onNavigate("dish", {
+                      slug: r.name.toLowerCase().replace(/\s+/g, "-"),
+                    });
                   }}
                 >
                   <div style={{ fontWeight: 700 }}>{r.name}</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{r.cafeteria} • {r.station}</div>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>
+                    {r.cafeteria} • {r.station}
+                  </div>
                 </div>
               ))}
             </div>
