@@ -26,7 +26,6 @@ Photo Uploads
 
 Students can upload images of their meals.
 
-“Photo of the Day” displayed on the homepage.
 
 Navigation
 
@@ -45,7 +44,5 @@ Profile (top-right icon)
 Frontend: React (UI, routing, pages)
 
 Backend & Auth: Supabase (database + Gmail login)
-
-Styling: Tailwind CSS (responsive design)
 
 Deployment: Vercel (production hosting)
