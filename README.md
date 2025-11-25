@@ -1,3 +1,5 @@
+Notes: Currently, LooBites is facing issues regarding displaying the meals from each cafeteria on our Vercel deployed domain due to anti-scraping protocols by the University of Waterloo. A fix will be found to this sooner or later, to finish the service. 
+
 🍴 LooBites
 
 LooBites is a platform for University of Waterloo students to check daily residence cafeteria meals, share reviews, and upload photos of their food. Our goal is to help students make better meal choices and build a community around campus dining.
