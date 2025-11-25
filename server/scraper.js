@@ -5,6 +5,25 @@ import * as cheerio from "cheerio";
 const RAW_MENU_URL = (globalThis.process?.env?.MENU_URL_BASE || "").trim();
 const USER_AGENT = "LooBitesBot/1.0 (+contact@loobites.local)";
 
+export function todayInTorontoISO() {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date()).reduce(
+    (acc, part) => {
+      if (part.type === "year" || part.type === "month" || part.type === "day") {
+        acc[part.type] = part.value;
+      }
+      return acc;
+    },
+    { year: "", month: "", day: "" },
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 function resolveMenuURL() {
   let u = RAW_MENU_URL;
   if (!u) {
@@ -266,17 +285,12 @@ function buildResponse(html, date) {
   };
 }
 
-function todayInToronto() {
-  try {
-    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' });
-    return fmt.format(new Date()); // en-CA yields YYYY-MM-DD
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
-
 export async function fetchMenus(dateISO) {
-  const date = (dateISO && /\d{4}-\d{2}-\d{2}/.test(dateISO) ? dateISO : todayInToronto());
+  const today = todayInTorontoISO();
+  const date =
+    dateISO && /^\d{4}-\d{2}-\d{2}$/.test(dateISO) && dateISO <= today
+      ? dateISO
+      : today;
   const baseURL = resolveMenuURL();
   const u = new URL(baseURL);
   // Build a canonical date page URL using the site origin
@@ -345,6 +359,10 @@ export async function fetchMenus(dateISO) {
 
 // Helper for local fixture debugging
 export function parseMenusFromHTML(html, dateISO) {
-  const date = dateISO || new Date().toISOString().slice(0, 10);
+  const today = todayInTorontoISO();
+  const date =
+    dateISO && /^\d{4}-\d{2}-\d{2}$/.test(dateISO) && dateISO <= today
+      ? dateISO
+      : today;
   return buildResponse(html, date);
 }

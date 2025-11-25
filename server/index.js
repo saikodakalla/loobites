@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 import cron from "node-cron";
-import { fetchMenus } from "./scraper.js";
+import { fetchMenus, todayInTorontoISO } from "./scraper.js";
 import { createValidateImageRouter } from "./validateImage.js";
 
 // Load env from .env.local if available
@@ -49,7 +49,14 @@ app.get("/", (req, res) => res.redirect(302, "/api/menus"));
 
 app.get("/api/menus", async (req, res) => {
   try {
-    const date = (req.query.date || new Date().toISOString().slice(0, 10));
+    const incoming = req.query.date;
+    const today = todayInTorontoISO();
+    const date =
+      typeof incoming === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(incoming) &&
+      incoming <= today
+        ? incoming
+        : today;
     const cached = getCached(date);
     if (cached) return res.json(cached);
 
@@ -66,7 +73,7 @@ app.get("/api/menus", async (req, res) => {
 app.use(createValidateImageRouter());
 
 cron.schedule("5 9,15,21 * * *", async () => {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = todayInTorontoISO();
   try {
     const data = await fetchMenus(date);
     setCached(date, data);
@@ -77,4 +84,3 @@ cron.schedule("5 9,15,21 * * *", async () => {
 });
 
 app.listen(PORT, () => console.log(`Menu API on http://localhost:${PORT}`));
-
