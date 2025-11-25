@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import cron from "node-cron";
 import { fetchMenus, todayInTorontoISO } from "./scraper.js";
-import { createValidateImageRouter } from "./validateImage.js";
+import { createValidateImageRouter } from "../server/validateImage.js";
 
 // Load env from .env.local if available
 try {
@@ -18,7 +18,10 @@ try {
       if (!m) return;
       const key = m[1];
       let val = m[2];
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
         val = val.slice(1, -1);
       }
       const env = (globalThis.process ||= { env: {} }).env;
@@ -30,7 +33,7 @@ try {
 const app = express();
 app.use(cors());
 
-const PORT = (globalThis.process?.env?.PORT) || 4000;
+const PORT = globalThis.process?.env?.PORT || 4000;
 
 const CACHE = new Map();
 const TTL_MS = 5 * 60 * 1000; // 5 minutes
