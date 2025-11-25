@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 import cron from "node-cron";
-import { fetchMenus, todayInTorontoISO } from "../server/scraper.js";
+import { fetchMenus, todayInTorontoISO } from "./scraper.js";
 import { createValidateImageRouter } from "../server/validateImage.js";
 
 // Load env from .env.local if available
