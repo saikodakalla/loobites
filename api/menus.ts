@@ -2,7 +2,7 @@
 // Disable TS checking only for this file (Vercel-friendly)
 // @ts-nocheck
 
-import { fetchMenus, todayInTorontoISO } from "./scraper.js";
+import { fetchMenus, todayInTorontoISO } from "../server/scraper.js";
 
 export default async function handler(req, res) {
   const qd = req.query?.date;
